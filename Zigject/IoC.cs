@@ -23,7 +23,7 @@
  * 
  */
 
-namespace ZigJect
+namespace Zigject
 {
     using System;
     using System.Collections.Generic;
