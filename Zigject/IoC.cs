@@ -35,7 +35,7 @@ namespace Zigject
         private static readonly Dictionary<Type, object> _map = new Dictionary<Type, object>();
         private static readonly ReaderWriterLockSlim _rwLock = new ReaderWriterLockSlim(LockRecursionPolicy.NoRecursion);
 
-        public static void Register<T1, T2>(T2 obj) where T2 : class, T1
+        public static void Register<T1>(T1 obj)
         {
             _rwLock.EnterWriteLock();
 
@@ -50,7 +50,7 @@ namespace Zigject
             }
         }
 
-        public static T1 Get<T1, T2>(Func<T2> getDefault = null) where T2 : class, T1
+        public static T1 Get<T1>(Func<T1> getDefault = null)
         {
             _rwLock.EnterReadLock();
 
@@ -62,9 +62,9 @@ namespace Zigject
                 object value = _map[typeof(T1)];
 
                 if (value is Type)
-                    return Activator.CreateInstance((Type)value) as T2;
+                    return (T1)Activator.CreateInstance((Type)value);
 
-                return _map[typeof(T1)] as T2;
+                return (T1)_map[typeof(T1)];
             }
             finally
             {
