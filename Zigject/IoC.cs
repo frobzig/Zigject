@@ -30,45 +30,79 @@ namespace Zigject
     using System.Text;
     using System.Threading;
 
-    public static class IoC
+    public class IoC
     {
-        private static readonly Dictionary<Type, object> _map = new Dictionary<Type, object>();
-        private static readonly ReaderWriterLockSlim _rwLock = new ReaderWriterLockSlim(LockRecursionPolicy.NoRecursion);
+        private static IoC _default;
 
-        public static void Register<T1>(T1 obj)
+        public static IoC Default
         {
-            _rwLock.EnterWriteLock();
+            get
+            {
+                if (_default == null)
+                    _default = new IoC();
 
-            try
-            {
-                //// best not add it twice
-                _map.Add(typeof(T1), obj);
-            }
-            finally
-            {
-                _rwLock.ExitWriteLock();
+                return _default;
             }
         }
 
-        public static T1 Get<T1>(Func<T1> getDefault = null)
+        private readonly Dictionary<Type, object> _map = new Dictionary<Type, object>();
+        private readonly ReaderWriterLockSlim _rwLock = new ReaderWriterLockSlim(LockRecursionPolicy.NoRecursion);
+        
+        public void Register<T1>(object obj)
         {
-            _rwLock.EnterReadLock();
+            this._rwLock.EnterWriteLock();
 
             try
             {
-                if (!_map.ContainsKey(typeof(T1)) && getDefault != null)
-                    return getDefault();
-
-                object value = _map[typeof(T1)];
-
-                if (value is Type)
-                    return (T1)Activator.CreateInstance((Type)value);
-
-                return (T1)_map[typeof(T1)];
+                this._map.Add(typeof(T1), obj);
             }
             finally
             {
-                _rwLock.ExitReadLock();
+                this._rwLock.ExitWriteLock();
+            }
+        }
+
+        public T1 Get<T1>()
+        {
+            return GetOrDefault<T1>(null, null);
+        }
+
+        public T1 Get<T1>(Action<T1> initialize)
+        {
+            return GetOrDefault(null, initialize);
+        }
+
+        public T1 Get<T1>(Func<T1> getDefault)
+        {
+            return GetOrDefault(getDefault);
+        }
+
+        public T1 GetOrDefault<T1>(Func<T1> getDefault = null, Action<T1> initialize = null)
+        {
+            this._rwLock.EnterReadLock();
+
+            try
+            {
+                T1 result;
+
+                if (!this._map.ContainsKey(typeof(T1)) && getDefault != null)
+                    return getDefault();
+
+                Type valueType = _map[typeof(T1)] as Type;
+
+                if (valueType != null)
+                    result = (T1)Activator.CreateInstance(valueType);
+                else
+                    result = (T1)this._map[typeof(T1)];
+
+                if (initialize != null)
+                    initialize(result);
+
+                return result;
+            }
+            finally
+            {
+                this._rwLock.ExitReadLock();
             }
         }
     }
