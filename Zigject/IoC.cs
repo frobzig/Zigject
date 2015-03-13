@@ -47,7 +47,21 @@ namespace Zigject
 
         private readonly Dictionary<Type, object> _map = new Dictionary<Type, object>();
         private readonly ReaderWriterLockSlim _rwLock = new ReaderWriterLockSlim(LockRecursionPolicy.NoRecursion);
-        
+                
+        public void Clear()
+        {
+            this._rwLock.EnterWriteLock();
+
+            try
+            {
+                this._map.Clear();
+            }
+            finally
+            {
+                this._rwLock.ExitWriteLock();
+            }
+        }
+
         public void Register<T1>(object obj)
         {
             this._rwLock.EnterWriteLock();
