@@ -47,7 +47,7 @@ namespace Zigject
 
         private readonly Dictionary<Type, object> _map = new Dictionary<Type, object>();
         private readonly ReaderWriterLockSlim _rwLock = new ReaderWriterLockSlim(LockRecursionPolicy.NoRecursion);
-                
+
         public void Clear()
         {
             this._rwLock.EnterWriteLock();
@@ -68,7 +68,12 @@ namespace Zigject
 
             try
             {
-                this._map.Add(typeof(T1), obj);
+                Type type = typeof(T1);
+
+                if (this._map.ContainsKey(type))
+                    this._map[type] = obj;
+                else
+                    this._map.Add(typeof(T1), obj);
             }
             finally
             {

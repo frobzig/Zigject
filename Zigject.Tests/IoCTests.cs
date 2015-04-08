@@ -59,5 +59,20 @@ namespace Zigject.Tests
             Assert.AreSame(circusCycle, vehicle);
             Assert.AreEqual<int>(4, vehicle.Capacity);
         }
+
+        [TestMethod]
+        public void RegisterOverwritesTest()
+        {
+            IoC container = new IoC();
+
+            IVehicle cycle = new Unicycle() { Capacity = 4 };
+
+            container.Register<IVehicle>(cycle);
+            Assert.IsInstanceOfType(container.Get<IVehicle>(), typeof(Unicycle));
+
+            IVehicle car = new Car() { Capacity = 1 };
+            container.Register<IVehicle>(car);
+            Assert.IsInstanceOfType(container.Get<IVehicle>(), typeof(Car));
+        }
     }
 }
