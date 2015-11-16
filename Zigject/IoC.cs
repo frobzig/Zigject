@@ -81,22 +81,22 @@ namespace Zigject
             }
         }
 
-        public T1 Get<T1>()
+        public T1 Get<T1>(params object[] args)
         {
-            return GetOrDefault<T1>(null, null);
+            return GetOrDefault<T1>(null, null, args);
         }
 
-        public T1 Get<T1>(Action<T1> initialize)
+        public T1 Get<T1>(Action<T1> initialize, params object[] args)
         {
-            return GetOrDefault(null, initialize);
+            return GetOrDefault(null, initialize, args);
         }
 
-        public T1 Get<T1>(Func<T1> getDefault)
+        public T1 Get<T1>(Func<T1> getDefault, params object[] args)
         {
-            return GetOrDefault(getDefault);
+            return GetOrDefault(getDefault, null, args);
         }
 
-        public T1 GetOrDefault<T1>(Func<T1> getDefault = null, Action<T1> initialize = null)
+        public T1 GetOrDefault<T1>(Func<T1> getDefault = null, Action<T1> initialize = null, params object[] args)
         {
             this._rwLock.EnterReadLock();
 
@@ -110,7 +110,7 @@ namespace Zigject
                 Type valueType = _map[typeof(T1)] as Type;
 
                 if (valueType != null)
-                    result = (T1)Activator.CreateInstance(valueType);
+                    result = (T1)Activator.CreateInstance(valueType, args);
                 else
                     result = (T1)this._map[typeof(T1)];
 
