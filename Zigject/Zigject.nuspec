@@ -8,7 +8,7 @@
     <owners>$author$</owners>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>$description$</description>
-    <copyright>Copyright Nicholas Barrett 2015</copyright>
+    <copyright>Copyright (c) 2016 Nicholas Barrett</copyright>
     <licenseUrl>http://opensource.org/licenses/mit-license.php</licenseUrl>
   </metadata>
 </package>
