@@ -26,9 +26,9 @@ namespace Zigject.Tests
 
         public class Car : VehicleBase
         {
-            public Car()
+            public Car(int capacity = 5)
             {
-                this.Capacity = 5; 
+                this.Capacity = capacity; 
             }
         }
 
@@ -46,6 +46,19 @@ namespace Zigject.Tests
         }
 
         [TestMethod]
+        public void TypeActivatorWithParamsTest()
+        {
+            IoC container = new IoC();
+
+            container.Register<IVehicle>(typeof(Car));
+
+            IVehicle vehicle = container.Get<IVehicle>(17);
+
+            Assert.IsTrue(vehicle is Car);
+            Assert.AreEqual<int>(17, vehicle.Capacity);
+        }
+
+        [TestMethod]
         public void SingletonTest()
         {
             IoC container = new IoC();
@@ -58,6 +71,29 @@ namespace Zigject.Tests
             Assert.IsTrue(vehicle is Unicycle);
             Assert.AreSame(circusCycle, vehicle);
             Assert.AreEqual<int>(4, vehicle.Capacity);
+        }
+
+        [TestMethod]
+        public void LazySingletonTest()
+        {
+            IoC container = new IoC();
+
+            container.Register<IVehicle>(typeof(Car), IoC.InjectionBehavior.Lazy);
+
+            IVehicle vehicle1 = container.Get<IVehicle>(6);
+            IVehicle vehicle2 = container.Get<IVehicle>(10);
+            IVehicle vehicle3 = container.Get<IVehicle>();
+
+            Assert.IsTrue(vehicle1 is Car);
+            Assert.IsTrue(vehicle2 is Car);
+            Assert.IsTrue(vehicle3 is Car);
+            Assert.AreSame(vehicle1, vehicle2);
+            Assert.AreSame(vehicle1, vehicle3);
+            Assert.AreEqual<int>(6, vehicle1.Capacity);
+
+            //// should be 6 because it was only instantiated the first time
+            Assert.AreEqual<int>(6, vehicle2.Capacity);
+            Assert.AreEqual<int>(6, vehicle3.Capacity);
         }
 
         [TestMethod]

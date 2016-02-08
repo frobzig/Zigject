@@ -1,7 +1,7 @@
 ﻿/* 
  * The MIT License (MIT)
  * 
- * Copyright (c) 2015 Nicholas Barrett
+ * Copyright (c) 2016 Nicholas Barrett
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,7 +27,8 @@ namespace Zigject
 {
     using System;
     using System.Collections.Generic;
-    using System.Text;
+    using System.Globalization;
+    using System.Reflection;
     using System.Threading;
 
     public class IoC
@@ -62,13 +63,16 @@ namespace Zigject
             }
         }
 
-        public void Register<T1>(object obj)
+        public void Register<T1>(object obj, InjectionBehavior behavior = InjectionBehavior.Standard)
         {
             this._rwLock.EnterWriteLock();
 
             try
             {
                 Type type = typeof(T1);
+
+                if (behavior != InjectionBehavior.Standard)
+                    obj = new InjectionTypeDecorator<T1>(obj, behavior).Validated();
 
                 if (this._map.ContainsKey(type))
                     this._map[type] = obj;
@@ -81,22 +85,22 @@ namespace Zigject
             }
         }
 
-        public T1 Get<T1>()
+        public T1 Get<T1>(params object[] args)
         {
-            return GetOrDefault<T1>(null, null);
+            return GetOrDefault<T1>(null, null, args);
         }
 
-        public T1 Get<T1>(Action<T1> initialize)
+        public T1 Get<T1>(Action<T1> initialize, params object[] args)
         {
-            return GetOrDefault(null, initialize);
+            return GetOrDefault(null, initialize, args);
         }
 
-        public T1 Get<T1>(Func<T1> getDefault)
+        public T1 Get<T1>(Func<T1> getDefault, params object[] args)
         {
-            return GetOrDefault(getDefault);
+            return GetOrDefault(getDefault, null, args);
         }
 
-        public T1 GetOrDefault<T1>(Func<T1> getDefault = null, Action<T1> initialize = null)
+        public T1 GetOrDefault<T1>(Func<T1> getDefault = null, Action<T1> initialize = null, params object[] args)
         {
             this._rwLock.EnterReadLock();
 
@@ -107,15 +111,34 @@ namespace Zigject
                 if (!this._map.ContainsKey(typeof(T1)) && getDefault != null)
                     return getDefault();
 
-                Type valueType = _map[typeof(T1)] as Type;
+                object value = _map[typeof(T1)];
 
-                if (valueType != null)
-                    result = (T1)Activator.CreateInstance(valueType);
+                InjectionTypeDecorator<T1> decoratorValue = value as InjectionTypeDecorator<T1>;
+
+                if (decoratorValue != null)
+                {
+                    result = decoratorValue.Get(initialize, args);
+                }
                 else
-                    result = (T1)this._map[typeof(T1)];
+                {
+                    Type typeValue = value as Type;
 
-                if (initialize != null)
-                    initialize(result);
+                    if (typeValue != null)
+                    {
+                        result = (T1)Activator.CreateInstance(
+                            typeValue,
+                            BindingFlags.OptionalParamBinding | BindingFlags.Public |
+                                BindingFlags.Instance | BindingFlags.CreateInstance,
+                            null,
+                            args,
+                            CultureInfo.CurrentCulture);
+                    }
+                    else
+                        result = (T1)value;
+
+                    if (initialize != null)
+                        initialize(result);
+                }
 
                 return result;
             }
@@ -124,5 +147,62 @@ namespace Zigject
                 this._rwLock.ExitReadLock();
             }
         }
+
+        #region InjectionBehavior
+        [Flags]
+        public enum InjectionBehavior
+        {
+            Standard = 0,
+            Lazy = 1,
+        }
+        #endregion
+
+        #region InjectionTypeDecorator
+        private class InjectionTypeDecorator<T1>
+        {
+            public InjectionTypeDecorator(object obj, InjectionBehavior behavior)
+            {
+                this.Target = obj;
+                this.Behavior = behavior;
+            }
+
+            public InjectionBehavior Behavior { get; private set; }
+            public object Target { get; private set; }
+
+            public InjectionTypeDecorator<T1> Validated()
+            {
+                if (this.Behavior.HasFlag(InjectionBehavior.Lazy) && !(this.Target is Type))
+                    throw new InjectionException("Only types can be registered with InjectionBehavior.Lazy");
+
+                return this;
+            }
+
+            public T1 Get(Action<T1> initialize = null, params object[] args)
+            {
+                Type typeTarget = this.Target as Type;
+
+                if (this.Behavior.HasFlag(InjectionBehavior.Lazy))
+                {
+                    if (typeTarget != null)
+                    {
+                        this.Target = Activator.CreateInstance(
+                            typeTarget,
+                            BindingFlags.OptionalParamBinding | BindingFlags.Public |
+                                BindingFlags.Instance | BindingFlags.CreateInstance,
+                            null,
+                            args,
+                            CultureInfo.CurrentCulture);
+                    }
+
+                    if (initialize != null)
+                        initialize((T1)this.Target);
+
+                    return (T1)this.Target;
+                }
+                else
+                    throw new InjectionException($"Invalid configuration of {nameof(InjectionTypeDecorator<T1>)}");
+            }
+        }
+        #endregion
     }
 }
