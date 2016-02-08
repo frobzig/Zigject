@@ -133,11 +133,11 @@ namespace Zigject
                             args,
                             CultureInfo.CurrentCulture);
                     }
-                    else
+                else
                         result = (T1)value;
 
-                    if (initialize != null)
-                        initialize(result);
+                if (initialize != null)
+                    initialize(result);
                 }
 
                 return result;
