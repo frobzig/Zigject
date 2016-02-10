@@ -1,5 +1,6 @@
 ﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using System.Threading.Tasks;
 
 namespace Zigject.Tests
 {
@@ -29,6 +30,14 @@ namespace Zigject.Tests
             public Car(int capacity = 5)
             {
                 this.Capacity = capacity; 
+            }
+        }
+
+        public class Jet : VehicleBase
+        {
+            public static async Task<Jet> Create(int capacity)
+            {
+                return await Task.FromResult<Jet>(new Jet() { Capacity = capacity });
             }
         }
 
@@ -109,6 +118,88 @@ namespace Zigject.Tests
             IVehicle car = new Car() { Capacity = 1 };
             container.Register<IVehicle>(car);
             Assert.IsInstanceOfType(container.Get<IVehicle>(), typeof(Car));
+        }
+
+        [TestMethod]
+        public void CreateMethodTest()
+        {
+            IoC container = new IoC();
+
+            container.Register<IVehicle>(typeof(Jet), IoC.InjectionBehavior.CreateMethod);
+
+            IVehicle vehicle1 = container.Get<IVehicle>(2);
+            IVehicle vehicle2 = container.Get<IVehicle>(16);
+            IVehicle vehicle3 = container.Get<IVehicle>(300);
+
+            Assert.AreNotSame(vehicle2, vehicle1);
+            Assert.AreNotSame(vehicle3, vehicle2);
+            Assert.AreNotSame(vehicle3, vehicle1);
+
+            Assert.AreEqual<int>(2, vehicle1.Capacity);
+            Assert.AreEqual<int>(16, vehicle2.Capacity);
+            Assert.AreEqual<int>(300, vehicle3.Capacity);
+        }
+
+        [TestMethod]
+        public async Task CreateMethodAsyncTest()
+        {
+            IoC container = new IoC();
+
+            await container.RegisterAsync<IVehicle>(typeof(Jet), IoC.InjectionBehavior.CreateMethod);
+
+            IVehicle vehicle1 = await container.GetAsync<IVehicle>(2);
+            IVehicle vehicle2 = await container.GetAsync<IVehicle>(16);
+            IVehicle vehicle3 = await container.GetAsync<IVehicle>(300);
+
+            Assert.AreNotSame(vehicle2, vehicle1);
+            Assert.AreNotSame(vehicle3, vehicle2);
+            Assert.AreNotSame(vehicle3, vehicle1);
+
+            Assert.AreEqual<int>(2, vehicle1.Capacity);
+            Assert.AreEqual<int>(16, vehicle2.Capacity);
+            Assert.AreEqual<int>(300, vehicle3.Capacity);
+        }
+
+        [TestMethod]
+        public async Task CreateMethodLazyAsyncTest()
+        {
+            IoC container = new IoC();
+
+            await container.RegisterAsync<IVehicle>(typeof(Jet),
+                IoC.InjectionBehavior.CreateMethod | IoC.InjectionBehavior.Lazy);
+
+            IVehicle vehicle1 = await container.GetAsync<IVehicle>(2);
+            IVehicle vehicle2 = await container.GetAsync<IVehicle>(16);
+            IVehicle vehicle3 = await container.GetAsync<IVehicle>(300);
+
+            Assert.AreSame(vehicle2, vehicle1);
+            Assert.AreSame(vehicle3, vehicle2);
+            Assert.AreSame(vehicle3, vehicle1);
+
+            Assert.AreEqual<int>(2, vehicle1.Capacity);
+            Assert.AreEqual<int>(2, vehicle2.Capacity);
+            Assert.AreEqual<int>(2, vehicle3.Capacity);
+        }
+
+        [TestMethod]
+        public void CreateMethodLazyTest()
+        {
+            IoC container = new IoC();
+
+            container.Register<IVehicle>(typeof(Jet),
+                IoC.InjectionBehavior.CreateMethod | IoC.InjectionBehavior.Lazy);
+
+            IVehicle vehicle1 = container.Get<IVehicle>(2);
+            IVehicle vehicle2 = container.Get<IVehicle>(16);
+            IVehicle vehicle3 = container.Get<IVehicle>(300);
+
+            Assert.AreSame(vehicle2, vehicle1);
+            Assert.AreSame(vehicle3, vehicle2);
+            Assert.AreSame(vehicle3, vehicle1);
+
+            Assert.AreEqual<int>(2, vehicle1.Capacity);
+            Assert.AreEqual<int>(2, vehicle2.Capacity);
+            Assert.AreEqual<int>(2, vehicle3.Capacity);
         }
     }
 }

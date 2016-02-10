@@ -30,7 +30,7 @@ namespace Zigject
     using System.Globalization;
     using System.Reflection;
     using System.Threading;
-
+    using System.Threading.Tasks;
     public class IoC
     {
         private static IoC _default;
@@ -47,11 +47,11 @@ namespace Zigject
         }
 
         private readonly Dictionary<Type, object> _map = new Dictionary<Type, object>();
-        private readonly ReaderWriterLockSlim _rwLock = new ReaderWriterLockSlim(LockRecursionPolicy.NoRecursion);
+        private readonly SemaphoreSlim _semLock = new SemaphoreSlim(1);
 
-        public void Clear()
+        public async Task ClearAsync()
         {
-            this._rwLock.EnterWriteLock();
+            await this._semLock.WaitAsync();
 
             try
             {
@@ -59,13 +59,13 @@ namespace Zigject
             }
             finally
             {
-                this._rwLock.ExitWriteLock();
+                this._semLock.Release();
             }
         }
 
-        public void Register<T1>(object obj, InjectionBehavior behavior = InjectionBehavior.Standard)
+        public async Task RegisterAsync<T1>(object obj, InjectionBehavior behavior = InjectionBehavior.Standard)
         {
-            this._rwLock.EnterWriteLock();
+            await this._semLock.WaitAsync();
 
             try
             {
@@ -81,8 +81,81 @@ namespace Zigject
             }
             finally
             {
-                this._rwLock.ExitWriteLock();
+                this._semLock.Release();
             }
+        }
+
+        public async Task<T1> GetAsync<T1>(params object[] args)
+        {
+            return await GetOrDefaultAsync<T1>(null, null, args);
+        }
+
+        public async Task<T1> GetAsync<T1>(Action<T1> initialize, params object[] args)
+        {
+            return await GetOrDefaultAsync(null, initialize, args);
+        }
+
+        public async Task<T1> GetAsync<T1>(Func<T1> getDefault, params object[] args)
+        {
+            return await GetOrDefaultAsync(getDefault, null, args);
+        }
+
+        public async Task<T1> GetOrDefaultAsync<T1>(Func<T1> getDefault = null, Action<T1> initialize = null, params object[] args)
+        {
+            await this._semLock.WaitAsync();
+
+            try
+            {
+                T1 result;
+
+                if (!this._map.ContainsKey(typeof(T1)) && getDefault != null)
+                    return getDefault();
+
+                object value = _map[typeof(T1)];
+
+                InjectionTypeDecorator<T1> decoratorValue = value as InjectionTypeDecorator<T1>;
+
+                if (decoratorValue != null)
+                {
+                    result = await decoratorValue.GetAsync(initialize, args);
+                }
+                else
+                {
+                    Type typeValue = value as Type;
+
+                    if (typeValue != null)
+                    {
+                        result = (T1)Activator.CreateInstance(
+                            typeValue,
+                            BindingFlags.OptionalParamBinding | BindingFlags.Public |
+                                BindingFlags.Instance | BindingFlags.CreateInstance,
+                            null,
+                            args,
+                            CultureInfo.CurrentCulture);
+                    }
+                    else
+                        result = (T1)value;
+
+                    if (initialize != null)
+                        initialize(result);
+                }
+
+                return result;
+            }
+            finally
+            {
+                this._semLock.Release();
+            }
+        }
+
+        public void Clear()
+        {
+            Task.Run(() => { return this.ClearAsync(); });
+        }
+
+        public void Register<T1>(object obj, InjectionBehavior behavior = InjectionBehavior.Standard)
+        {
+            Task.Run(() => { return this.RegisterAsync<T1>(obj, behavior); }).Wait();
         }
 
         public T1 Get<T1>(params object[] args)
@@ -102,50 +175,7 @@ namespace Zigject
 
         public T1 GetOrDefault<T1>(Func<T1> getDefault = null, Action<T1> initialize = null, params object[] args)
         {
-            this._rwLock.EnterReadLock();
-
-            try
-            {
-                T1 result;
-
-                if (!this._map.ContainsKey(typeof(T1)) && getDefault != null)
-                    return getDefault();
-
-                object value = _map[typeof(T1)];
-
-                InjectionTypeDecorator<T1> decoratorValue = value as InjectionTypeDecorator<T1>;
-
-                if (decoratorValue != null)
-                {
-                    result = decoratorValue.Get(initialize, args);
-                }
-                else
-                {
-                    Type typeValue = value as Type;
-
-                    if (typeValue != null)
-                    {
-                        result = (T1)Activator.CreateInstance(
-                            typeValue,
-                            BindingFlags.OptionalParamBinding | BindingFlags.Public |
-                                BindingFlags.Instance | BindingFlags.CreateInstance,
-                            null,
-                            args,
-                            CultureInfo.CurrentCulture);
-                    }
-                else
-                        result = (T1)value;
-
-                if (initialize != null)
-                    initialize(result);
-                }
-
-                return result;
-            }
-            finally
-            {
-                this._rwLock.ExitReadLock();
-            }
+            return Task.Run(() => { return GetOrDefaultAsync(getDefault, initialize, args); }).Result;
         }
 
         #region InjectionBehavior
@@ -154,38 +184,74 @@ namespace Zigject
         {
             Standard = 0,
             Lazy = 1,
+            CreateMethod = 2,
         }
         #endregion
 
         #region InjectionTypeDecorator
         private class InjectionTypeDecorator<T1>
         {
+            private MethodInfo _createMethod;
+
             public InjectionTypeDecorator(object obj, InjectionBehavior behavior)
             {
                 this.Target = obj;
                 this.Behavior = behavior;
             }
-
+            
             public InjectionBehavior Behavior { get; private set; }
             public object Target { get; private set; }
-
+            
             public InjectionTypeDecorator<T1> Validated()
             {
-                if (this.Behavior.HasFlag(InjectionBehavior.Lazy) && !(this.Target is Type))
-                    throw new InjectionException("Only types can be registered with InjectionBehavior.Lazy");
+                Type type = this.Target as Type;
+
+                if (this.Behavior.HasFlag(InjectionBehavior.Lazy) && type == null)
+                    throw new InjectionException($"Only types can be registered with {nameof(InjectionBehavior.Lazy)}");
+
+                if (this.Behavior.HasFlag(InjectionBehavior.CreateMethod))
+                {
+                    if (type == null)
+                        throw new InjectionException($"Only types can be registered with {nameof(InjectionBehavior.CreateMethod)}");
+
+                    this._createMethod = type.GetMethod("Create",
+                        BindingFlags.Static | BindingFlags.Public | BindingFlags.InvokeMethod |
+                        BindingFlags.OptionalParamBinding);
+
+                    if (this._createMethod == null)
+                        throw new InjectionException($"Cannot find Create method on type {type.Name}");
+                }
 
                 return this;
             }
 
-            public T1 Get(Action<T1> initialize = null, params object[] args)
+            public async Task<object> CallCreateMethod(Type type, object[] args)
+            {
+                object result = this._createMethod.Invoke(null, args);
+
+                Task task = result as Task;
+                await task;
+
+                if (task != null)
+                    result = result.GetType().GetProperty("Result").GetValue(task);
+
+                return result;
+            }
+
+            public async Task<T1> GetAsync(Action<T1> initialize = null, params object[] args)
             {
                 Type typeTarget = this.Target as Type;
+                object result = default(T1);
 
-                if (this.Behavior.HasFlag(InjectionBehavior.Lazy))
+                if (typeTarget != null)
                 {
-                    if (typeTarget != null)
+                    if (this.Behavior.HasFlag(InjectionBehavior.CreateMethod))
                     {
-                        this.Target = Activator.CreateInstance(
+                        result = await this.CallCreateMethod(typeTarget, args);
+                    }
+                    else
+                    {
+                        result = Activator.CreateInstance(
                             typeTarget,
                             BindingFlags.OptionalParamBinding | BindingFlags.Public |
                                 BindingFlags.Instance | BindingFlags.CreateInstance,
@@ -194,13 +260,18 @@ namespace Zigject
                             CultureInfo.CurrentCulture);
                     }
 
-                    if (initialize != null)
-                        initialize((T1)this.Target);
+                    if (this.Behavior.HasFlag(InjectionBehavior.Lazy))
+                        this.Target = result;
 
-                    return (T1)this.Target;
+                    if (initialize != null)
+                        initialize((T1)result);
                 }
-                else
+                else if (!this.Behavior.HasFlag(InjectionBehavior.Lazy))
                     throw new InjectionException($"Invalid configuration of {nameof(InjectionTypeDecorator<T1>)}");
+                else
+                    result = this.Target;
+
+                return (T1)result;
             }
         }
         #endregion
