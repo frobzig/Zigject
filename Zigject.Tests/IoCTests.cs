@@ -130,7 +130,7 @@ namespace Zigject.Tests
             IVehicle vehicle1 = container.Get<IVehicle>(2);
             IVehicle vehicle2 = container.Get<IVehicle>(16);
             IVehicle vehicle3 = container.Get<IVehicle>(300);
-            IVehicle vehicle4 = container.Get<IVehicle>(Type.Missing);
+            IVehicle vehicle4 = container.Get<IVehicle>();
 
             Assert.AreNotSame(vehicle2, vehicle1);
             Assert.AreNotSame(vehicle3, vehicle2);

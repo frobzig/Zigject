@@ -131,7 +131,7 @@ namespace Zigject
                                 BindingFlags.Instance | BindingFlags.CreateInstance,
                             null,
                             args,
-                            CultureInfo.CurrentCulture);
+                            CultureInfo.InvariantCulture);
                     }
                     else
                         result = (T1)value;
@@ -191,17 +191,15 @@ namespace Zigject
         #region InjectionTypeDecorator
         private class InjectionTypeDecorator<T1>
         {
-            private MethodInfo _createMethod;
-
             public InjectionTypeDecorator(object obj, InjectionBehavior behavior)
             {
                 this.Target = obj;
                 this.Behavior = behavior;
             }
-            
+
             public InjectionBehavior Behavior { get; private set; }
             public object Target { get; private set; }
-            
+
             public InjectionTypeDecorator<T1> Validated()
             {
                 Type type = this.Target as Type;
@@ -214,11 +212,7 @@ namespace Zigject
                     if (type == null)
                         throw new InjectionException($"Only types can be registered with {nameof(InjectionBehavior.CreateMethod)}");
 
-                    this._createMethod = type.GetMethod("Create",
-                        BindingFlags.Static | BindingFlags.Public | BindingFlags.InvokeMethod |
-                        BindingFlags.OptionalParamBinding);
-
-                    if (this._createMethod == null)
+                    if (type.GetMethod("Create", BindingFlags.Static | BindingFlags.Public | BindingFlags.InvokeMethod) == null)
                         throw new InjectionException($"Cannot find Create method on type {type.Name}");
                 }
 
@@ -227,7 +221,7 @@ namespace Zigject
 
             public async Task<object> CallCreateMethod(Type type, object[] args)
             {
-                object result = this._createMethod.Invoke(null, BindingFlags.InvokeMethod | BindingFlags.OptionalParamBinding, null, args, CultureInfo.CurrentCulture);
+                object result = type.InvokeMember("Create", BindingFlags.Public | BindingFlags.Static | BindingFlags.OptionalParamBinding | BindingFlags.InvokeMethod, null, null, args);
 
                 Task task = result as Task;
                 await task;
@@ -257,7 +251,7 @@ namespace Zigject
                                 BindingFlags.Instance | BindingFlags.CreateInstance,
                             null,
                             args,
-                            CultureInfo.CurrentCulture);
+                            CultureInfo.InvariantCulture);
                     }
 
                     if (this.Behavior.HasFlag(InjectionBehavior.LazySingleton))
