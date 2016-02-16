@@ -183,7 +183,7 @@ namespace Zigject
         public enum InjectionBehavior
         {
             Standard = 0,
-            Lazy = 1,
+            LazySingleton = 1,
             CreateMethod = 2,
         }
         #endregion
@@ -206,8 +206,8 @@ namespace Zigject
             {
                 Type type = this.Target as Type;
 
-                if (this.Behavior.HasFlag(InjectionBehavior.Lazy) && type == null)
-                    throw new InjectionException($"Only types can be registered with {nameof(InjectionBehavior.Lazy)}");
+                if (this.Behavior.HasFlag(InjectionBehavior.LazySingleton) && type == null)
+                    throw new InjectionException($"Only types can be registered with {nameof(InjectionBehavior.LazySingleton)}");
 
                 if (this.Behavior.HasFlag(InjectionBehavior.CreateMethod))
                 {
@@ -227,7 +227,7 @@ namespace Zigject
 
             public async Task<object> CallCreateMethod(Type type, object[] args)
             {
-                object result = this._createMethod.Invoke(null, args);
+                object result = this._createMethod.Invoke(null, BindingFlags.InvokeMethod | BindingFlags.OptionalParamBinding, null, args, CultureInfo.CurrentCulture);
 
                 Task task = result as Task;
                 await task;
@@ -260,13 +260,13 @@ namespace Zigject
                             CultureInfo.CurrentCulture);
                     }
 
-                    if (this.Behavior.HasFlag(InjectionBehavior.Lazy))
+                    if (this.Behavior.HasFlag(InjectionBehavior.LazySingleton))
                         this.Target = result;
 
                     if (initialize != null)
                         initialize((T1)result);
                 }
-                else if (!this.Behavior.HasFlag(InjectionBehavior.Lazy))
+                else if (!this.Behavior.HasFlag(InjectionBehavior.LazySingleton))
                     throw new InjectionException($"Invalid configuration of {nameof(InjectionTypeDecorator<T1>)}");
                 else
                     result = this.Target;

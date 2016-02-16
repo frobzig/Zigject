@@ -35,7 +35,7 @@ namespace Zigject.Tests
 
         public class Jet : VehicleBase
         {
-            public static async Task<Jet> Create(int capacity)
+            public static async Task<Jet> Create(int capacity = 10)
             {
                 return await Task.FromResult<Jet>(new Jet() { Capacity = capacity });
             }
@@ -87,7 +87,7 @@ namespace Zigject.Tests
         {
             IoC container = new IoC();
 
-            container.Register<IVehicle>(typeof(Car), IoC.InjectionBehavior.Lazy);
+            container.Register<IVehicle>(typeof(Car), IoC.InjectionBehavior.LazySingleton);
 
             IVehicle vehicle1 = container.Get<IVehicle>(6);
             IVehicle vehicle2 = container.Get<IVehicle>(10);
@@ -130,6 +130,7 @@ namespace Zigject.Tests
             IVehicle vehicle1 = container.Get<IVehicle>(2);
             IVehicle vehicle2 = container.Get<IVehicle>(16);
             IVehicle vehicle3 = container.Get<IVehicle>(300);
+            IVehicle vehicle4 = container.Get<IVehicle>(Type.Missing);
 
             Assert.AreNotSame(vehicle2, vehicle1);
             Assert.AreNotSame(vehicle3, vehicle2);
@@ -138,6 +139,7 @@ namespace Zigject.Tests
             Assert.AreEqual<int>(2, vehicle1.Capacity);
             Assert.AreEqual<int>(16, vehicle2.Capacity);
             Assert.AreEqual<int>(300, vehicle3.Capacity);
+            Assert.AreEqual<int>(10, vehicle4.Capacity);
         }
 
         [TestMethod]
@@ -166,7 +168,7 @@ namespace Zigject.Tests
             IoC container = new IoC();
 
             await container.RegisterAsync<IVehicle>(typeof(Jet),
-                IoC.InjectionBehavior.CreateMethod | IoC.InjectionBehavior.Lazy);
+                IoC.InjectionBehavior.CreateMethod | IoC.InjectionBehavior.LazySingleton);
 
             IVehicle vehicle1 = await container.GetAsync<IVehicle>(2);
             IVehicle vehicle2 = await container.GetAsync<IVehicle>(16);
@@ -187,7 +189,7 @@ namespace Zigject.Tests
             IoC container = new IoC();
 
             container.Register<IVehicle>(typeof(Jet),
-                IoC.InjectionBehavior.CreateMethod | IoC.InjectionBehavior.Lazy);
+                IoC.InjectionBehavior.CreateMethod | IoC.InjectionBehavior.LazySingleton);
 
             IVehicle vehicle1 = container.Get<IVehicle>(2);
             IVehicle vehicle2 = container.Get<IVehicle>(16);
