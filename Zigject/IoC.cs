@@ -28,6 +28,7 @@ namespace Zigject
     using System;
     using System.Collections.Generic;
     using System.Globalization;
+    using System.Linq;
     using System.Reflection;
     using System.Threading;
     using System.Threading.Tasks;
@@ -144,15 +145,7 @@ namespace Zigject
                     Type typeValue = value as Type;
 
                     if (typeValue != null)
-                    {
-                        result = (T1)Activator.CreateInstance(
-                            typeValue,
-                            BindingFlags.OptionalParamBinding | BindingFlags.Public |
-                                BindingFlags.Instance | BindingFlags.CreateInstance,
-                            null,
-                            args,
-                            CultureInfo.InvariantCulture);
-                    }
+                        result = (T1)IoC.CreateInstance(typeValue, args);
                     else
                         result = (T1)value;
 
@@ -207,6 +200,8 @@ namespace Zigject
         #region InjectionTypeDecorator
         private class InjectionTypeDecorator<T1>
         {
+            private MethodInfo _createMethod;
+
             public InjectionTypeDecorator(object obj, InjectionBehavior behavior)
             {
                 this.Target = obj;
@@ -228,7 +223,9 @@ namespace Zigject
                     if (type == null)
                         throw new InjectionException($"Only types can be registered with {nameof(InjectionBehavior.CreateMethod)}");
 
-                    if (type.GetMethod("Create", BindingFlags.Static | BindingFlags.Public | BindingFlags.InvokeMethod) == null)
+                    this._createMethod = type.GetMethod("Create", BindingFlags.Static | BindingFlags.Public | BindingFlags.InvokeMethod);
+
+                    if (this._createMethod == null)
                         throw new InjectionException($"Cannot find Create method on type {type.Name}");
                 }
 
@@ -237,7 +234,7 @@ namespace Zigject
 
             public async Task<object> CallCreateMethod(Type type, object[] args)
             {
-                object result = type.InvokeMember("Create", BindingFlags.Public | BindingFlags.Static | BindingFlags.OptionalParamBinding | BindingFlags.InvokeMethod, null, null, args);
+                object result = type.InvokeMember(this._createMethod.Name, BindingFlags.Public | BindingFlags.Static | BindingFlags.OptionalParamBinding | BindingFlags.InvokeMethod, null, null, IoC.FixMissingArgs(this._createMethod, args));
 
                 Task task = result as Task;
 
@@ -263,13 +260,7 @@ namespace Zigject
                     }
                     else
                     {
-                        result = Activator.CreateInstance(
-                            typeTarget,
-                            BindingFlags.OptionalParamBinding | BindingFlags.Public |
-                                BindingFlags.Instance | BindingFlags.CreateInstance,
-                            null,
-                            args,
-                            CultureInfo.InvariantCulture);
+                        result = IoC.CreateInstance(typeTarget, args);
                     }
 
                     if (this.Behavior.HasFlag(InjectionBehavior.LazySingleton))
@@ -287,6 +278,39 @@ namespace Zigject
             }
         }
         #endregion
+
+        internal static object[] FixMissingArgs(MethodInfo method, object[] args)
+        {
+            ParameterInfo[] parameters = method.GetParameters();
+
+            if (args.Length == 0 && parameters.Length > 0)
+            {
+                List<object> fixedArgs = new List<object>();
+
+                foreach (ParameterInfo p in method.GetParameters())
+                {
+                    if (p.IsOptional)
+                        fixedArgs.Add(Type.Missing);
+                }
+
+                return fixedArgs.ToArray();
+            }
+            else
+                return args;
+        }
+
+        internal static object CreateInstance(Type type, object[] args)
+        {
+            object result = Activator.CreateInstance(
+                type,
+                BindingFlags.OptionalParamBinding | BindingFlags.Public |
+                    BindingFlags.Instance | BindingFlags.CreateInstance,
+                null,
+                args,
+                CultureInfo.InvariantCulture);
+
+            return result;
+        }
 
         #region Obsolete
         [Obsolete("This method is dangerously ambiguous.  Use GetWith instead.")]

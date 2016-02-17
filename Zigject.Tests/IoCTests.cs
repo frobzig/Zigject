@@ -68,6 +68,15 @@ namespace Zigject.Tests
             }
         }
 
+        public class Rikshaw : VehicleBase
+        {
+            public Rikshaw(int capacity = 3, params string[] passengers)
+            {
+                this.Capacity = capacity;
+                this.Passengers = passengers.ToList();
+            }
+        }
+
         [TestMethod]
         public void TypeActivatorTest()
         {
@@ -268,6 +277,38 @@ namespace Zigject.Tests
             Assert.AreEqual<string>("Ricky", tuktuk.Passengers[1]);
             Assert.AreEqual<string>("Julian", tuktuk.Passengers[2]);
             Assert.AreEqual<string>("Bobandy", tuktuk.Passengers[3]);
+        }
+
+        [TestMethod]
+        public void GetWithCreateOptionalsAndVarArgsTest()
+        {
+            IoC container = new IoC();
+
+            container.Register<IVehicle>(typeof(TukTuk), IoC.InjectionBehavior.CreateMethod);
+
+            IVehicle vehicle1 = container.Get<IVehicle>();
+            TukTuk tuktuk = vehicle1 as TukTuk;
+
+            Assert.IsNotNull(tuktuk);
+            Assert.AreEqual<int>(3, tuktuk.Capacity);
+            Assert.AreEqual<int>(0, tuktuk.Passengers.Count);
+        }
+
+        [TestMethod]
+        public void GetWithOptionalsAndVarArgsTest()
+        {
+            Assert.Fail("Filling out optional parameters for constructors does not work yet.");
+
+            IoC container = new IoC();
+
+            container.Register<IVehicle>(typeof(Rikshaw));
+
+            IVehicle vehicle1 = container.Get<IVehicle>();
+            Rikshaw rikshaw = vehicle1 as Rikshaw;
+
+            Assert.IsNotNull(rikshaw);
+            Assert.AreEqual<int>(3, rikshaw.Capacity);
+            Assert.AreEqual<int>(0, rikshaw.Passengers.Count);
         }
     }
 }
