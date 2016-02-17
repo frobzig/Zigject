@@ -281,22 +281,25 @@ namespace Zigject
 
         internal static object[] FixMissingArgs(MethodInfo method, object[] args)
         {
-            ParameterInfo[] parameters = method.GetParameters();
+            //// disabling this until constructor types can work the same way
+            return args;
 
-            if (args.Length == 0 && parameters.Length > 0)
-            {
-                List<object> fixedArgs = new List<object>();
+            ////ParameterInfo[] parameters = method.GetParameters();
 
-                foreach (ParameterInfo p in method.GetParameters())
-                {
-                    if (p.IsOptional)
-                        fixedArgs.Add(Type.Missing);
-                }
+            ////if (args.Length == 0 && parameters.Length > 0)
+            ////{
+            ////    List<object> fixedArgs = new List<object>();
 
-                return fixedArgs.ToArray();
-            }
-            else
-                return args;
+            ////    foreach (ParameterInfo p in method.GetParameters())
+            ////    {
+            ////        if (p.IsOptional)
+            ////            fixedArgs.Add(Type.Missing);
+            ////    }
+
+            ////    return fixedArgs.ToArray();
+            ////}
+            ////else
+            ////    return args;
         }
 
         internal static object CreateInstance(Type type, object[] args)

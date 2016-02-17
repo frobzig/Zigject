@@ -282,6 +282,8 @@ namespace Zigject.Tests
         [TestMethod]
         public void GetWithCreateOptionalsAndVarArgsTest()
         {
+            Assert.Fail("Filling out optional parameters for constructors does not work yet (and this is disabled until they do).");
+
             IoC container = new IoC();
 
             container.Register<IVehicle>(typeof(TukTuk), IoC.InjectionBehavior.CreateMethod);
