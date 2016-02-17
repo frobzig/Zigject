@@ -25,7 +25,9 @@
 
 namespace Zigject
 {
+    using Nito.AsyncEx;
     using System;
+    using System.Collections.Concurrent;
     using System.Collections.Generic;
     using System.Globalization;
     using System.Linq;
@@ -48,44 +50,29 @@ namespace Zigject
             }
         }
 
-        private readonly Dictionary<Type, object> _map = new Dictionary<Type, object>();
-        private readonly SemaphoreSlim _semLock = new SemaphoreSlim(1);
+        private readonly ConcurrentDictionary<Type, object> _map = new ConcurrentDictionary<Type, object>();
+        private readonly AsyncReaderWriterLock _arwLock = new AsyncReaderWriterLock();
         #endregion
 
         #region Register/Clear
         public async Task ClearAsync()
         {
-            await this._semLock.WaitAsync();
-
-            try
+            using (await this._arwLock.WriterLockAsync())
             {
                 this._map.Clear();
-            }
-            finally
-            {
-                this._semLock.Release();
             }
         }
 
         public async Task RegisterAsync<T1>(object obj, InjectionBehavior behavior = InjectionBehavior.Standard)
         {
-            await this._semLock.WaitAsync();
-
-            try
+            using (await this._arwLock.WriterLockAsync())
             {
                 Type type = typeof(T1);
 
                 if (behavior != InjectionBehavior.Standard)
                     obj = new InjectionTypeDecorator<T1>(obj, behavior).Validated();
 
-                if (this._map.ContainsKey(type))
-                    this._map[type] = obj;
-                else
-                    this._map.Add(typeof(T1), obj);
-            }
-            finally
-            {
-                this._semLock.Release();
+                this._map[type] = obj;
             }
         }
 
@@ -123,12 +110,10 @@ namespace Zigject
 
         public async Task<T1> GetOrDefaultAsync<T1>(Func<T1> getDefault = null, Action<T1> initialize = null, params object[] args)
         {
-            await this._semLock.WaitAsync();
+            T1 result;
 
-            try
+            using (await this._arwLock.ReaderLockAsync())
             {
-                T1 result;
-
                 if (!this._map.ContainsKey(typeof(T1)) && getDefault != null)
                     return getDefault();
 
@@ -154,10 +139,6 @@ namespace Zigject
                 }
 
                 return result;
-            }
-            finally
-            {
-                this._semLock.Release();
             }
         }
 
@@ -201,6 +182,7 @@ namespace Zigject
         private class InjectionTypeDecorator<T1>
         {
             private MethodInfo _createMethod;
+            private AsyncReaderWriterLock _arwLock = new AsyncReaderWriterLock();
 
             public InjectionTypeDecorator(object obj, InjectionBehavior behavior)
             {
@@ -249,32 +231,40 @@ namespace Zigject
 
             public async Task<T1> GetAsync(Action<T1> initialize = null, params object[] args)
             {
-                Type typeTarget = this.Target as Type;
-                object result = default(T1);
-
-                if (typeTarget != null)
+                using (AsyncReaderWriterLock.UpgradeableReaderKey upgradeKey = await this._arwLock.UpgradeableReaderLockAsync())
                 {
-                    if (this.Behavior.HasFlag(InjectionBehavior.CreateMethod))
+                    Type typeTarget = this.Target as Type;
+                    object result = default(T1);
+
+                    if (typeTarget != null)
                     {
-                        result = await this.CallCreateMethod(typeTarget, args);
+                        if (this.Behavior.HasFlag(InjectionBehavior.CreateMethod))
+                        {
+                            result = await this.CallCreateMethod(typeTarget, args);
+                        }
+                        else
+                        {
+                            result = IoC.CreateInstance(typeTarget, args);
+                        }
+
+                        if (this.Behavior.HasFlag(InjectionBehavior.LazySingleton))
+                        {
+                            using (await upgradeKey.UpgradeAsync())
+                            {
+                                this.Target = result;
+
+                                if (initialize != null)
+                                    initialize((T1)result);
+                            }
+                        }
                     }
+                    else if (!this.Behavior.HasFlag(InjectionBehavior.LazySingleton))
+                        throw new InjectionException($"Invalid configuration of {nameof(InjectionTypeDecorator<T1>)}");
                     else
-                    {
-                        result = IoC.CreateInstance(typeTarget, args);
-                    }
+                        result = this.Target;
 
-                    if (this.Behavior.HasFlag(InjectionBehavior.LazySingleton))
-                        this.Target = result;
-
-                    if (initialize != null)
-                        initialize((T1)result);
+                    return (T1)result;
                 }
-                else if (!this.Behavior.HasFlag(InjectionBehavior.LazySingleton))
-                    throw new InjectionException($"Invalid configuration of {nameof(InjectionTypeDecorator<T1>)}");
-                else
-                    result = this.Target;
-
-                return (T1)result;
             }
         }
         #endregion
@@ -332,6 +322,12 @@ namespace Zigject
         public async Task<T1> GetAsync<T1>(Func<T1> getDefault, params object[] args)
         {
             return await GetOrDefaultAsync(getDefault, null, args);
+        }
+
+        [Obsolete("This method is dangerously ambiguous.  Use GetWith instead.")]
+        public T1 Get<T1>(params object[] args)
+        {
+            return GetOrDefault<T1>(null, null, args);
         }
 
         [Obsolete("This method is dangerously ambiguous.  Use GetWith instead.")]
