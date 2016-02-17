@@ -1,6 +1,8 @@
 ﻿using System;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using System.Threading.Tasks;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Zigject.Tests
 {
@@ -10,11 +12,13 @@ namespace Zigject.Tests
         public interface IVehicle
         {
             int Capacity { get; set; }
+            List<string> Passengers { get; }
         }
 
         public class VehicleBase : IVehicle
         {
             public int Capacity { get; set; }
+            public List<string> Passengers { get; protected set; }
         }
 
         public class Unicycle : VehicleBase
@@ -41,6 +45,29 @@ namespace Zigject.Tests
             }
         }
 
+        public class Shuttle : VehicleBase
+        {
+            public Shuttle(int capacity = 56, params string[] passengers)
+            {
+                this.Capacity = capacity;
+                this.Passengers = passengers.ToList();
+            }
+        }
+
+        public class TukTuk :VehicleBase
+        {
+            public static TukTuk Create(int capacity = 3, params string[] args)
+            {
+                return new TukTuk(capacity, args);
+            }
+
+            protected TukTuk(int capacity = 3, params string[] passengers)
+            {
+                this.Capacity = capacity;
+                this.Passengers = passengers.ToList();
+            }
+        }
+
         [TestMethod]
         public void TypeActivatorTest()
         {
@@ -61,7 +88,7 @@ namespace Zigject.Tests
 
             container.Register<IVehicle>(typeof(Car));
 
-            IVehicle vehicle = container.Get<IVehicle>(17);
+            IVehicle vehicle = container.GetWithArgs<IVehicle>(17);
 
             Assert.IsTrue(vehicle is Car);
             Assert.AreEqual<int>(17, vehicle.Capacity);
@@ -75,7 +102,7 @@ namespace Zigject.Tests
             IVehicle circusCycle = new Unicycle() { Capacity = 4 };
             container.Register<IVehicle>(circusCycle);
 
-            IVehicle vehicle = container.Get<IVehicle>();
+            IVehicle vehicle = container.GetWithArgs<IVehicle>();
 
             Assert.IsTrue(vehicle is Unicycle);
             Assert.AreSame(circusCycle, vehicle);
@@ -89,9 +116,9 @@ namespace Zigject.Tests
 
             container.Register<IVehicle>(typeof(Car), IoC.InjectionBehavior.LazySingleton);
 
-            IVehicle vehicle1 = container.Get<IVehicle>(6);
-            IVehicle vehicle2 = container.Get<IVehicle>(10);
-            IVehicle vehicle3 = container.Get<IVehicle>();
+            IVehicle vehicle1 = container.GetWithArgs<IVehicle>(6);
+            IVehicle vehicle2 = container.GetWithArgs<IVehicle>(10);
+            IVehicle vehicle3 = container.GetWithArgs<IVehicle>();
 
             Assert.IsTrue(vehicle1 is Car);
             Assert.IsTrue(vehicle2 is Car);
@@ -127,19 +154,20 @@ namespace Zigject.Tests
 
             container.Register<IVehicle>(typeof(Jet), IoC.InjectionBehavior.CreateMethod);
 
-            IVehicle vehicle1 = container.Get<IVehicle>(2);
-            IVehicle vehicle2 = container.Get<IVehicle>(16);
-            IVehicle vehicle3 = container.Get<IVehicle>(300);
-            IVehicle vehicle4 = container.Get<IVehicle>();
+            IVehicle vehicle1 = container.GetWithArgs<IVehicle>();
+            IVehicle vehicle2 = container.GetWithArgs<IVehicle>(16);
+            IVehicle vehicle3 = container.GetWithArgs<IVehicle>(300);
+            IVehicle vehicle4 = container.GetWithArgs<IVehicle>(2);
 
             Assert.AreNotSame(vehicle2, vehicle1);
             Assert.AreNotSame(vehicle3, vehicle2);
             Assert.AreNotSame(vehicle3, vehicle1);
+            Assert.AreNotSame(vehicle4, vehicle3);
 
-            Assert.AreEqual<int>(2, vehicle1.Capacity);
+            Assert.AreEqual<int>(10, vehicle1.Capacity);
             Assert.AreEqual<int>(16, vehicle2.Capacity);
             Assert.AreEqual<int>(300, vehicle3.Capacity);
-            Assert.AreEqual<int>(10, vehicle4.Capacity);
+            Assert.AreEqual<int>(2, vehicle4.Capacity);
         }
 
         [TestMethod]
@@ -149,9 +177,9 @@ namespace Zigject.Tests
 
             await container.RegisterAsync<IVehicle>(typeof(Jet), IoC.InjectionBehavior.CreateMethod);
 
-            IVehicle vehicle1 = await container.GetAsync<IVehicle>(2);
-            IVehicle vehicle2 = await container.GetAsync<IVehicle>(16);
-            IVehicle vehicle3 = await container.GetAsync<IVehicle>(300);
+            IVehicle vehicle1 = await container.GetWithArgsAsync<IVehicle>(2);
+            IVehicle vehicle2 = await container.GetWithArgsAsync<IVehicle>(16);
+            IVehicle vehicle3 = await container.GetWithArgsAsync<IVehicle>(300);
 
             Assert.AreNotSame(vehicle2, vehicle1);
             Assert.AreNotSame(vehicle3, vehicle2);
@@ -170,9 +198,9 @@ namespace Zigject.Tests
             await container.RegisterAsync<IVehicle>(typeof(Jet),
                 IoC.InjectionBehavior.CreateMethod | IoC.InjectionBehavior.LazySingleton);
 
-            IVehicle vehicle1 = await container.GetAsync<IVehicle>(2);
-            IVehicle vehicle2 = await container.GetAsync<IVehicle>(16);
-            IVehicle vehicle3 = await container.GetAsync<IVehicle>(300);
+            IVehicle vehicle1 = await container.GetWithArgsAsync<IVehicle>(2);
+            IVehicle vehicle2 = await container.GetWithArgsAsync<IVehicle>(16);
+            IVehicle vehicle3 = await container.GetWithArgsAsync<IVehicle>(300);
 
             Assert.AreSame(vehicle2, vehicle1);
             Assert.AreSame(vehicle3, vehicle2);
@@ -191,9 +219,9 @@ namespace Zigject.Tests
             container.Register<IVehicle>(typeof(Jet),
                 IoC.InjectionBehavior.CreateMethod | IoC.InjectionBehavior.LazySingleton);
 
-            IVehicle vehicle1 = container.Get<IVehicle>(2);
-            IVehicle vehicle2 = container.Get<IVehicle>(16);
-            IVehicle vehicle3 = container.Get<IVehicle>(300);
+            IVehicle vehicle1 = container.GetWithArgs<IVehicle>(2);
+            IVehicle vehicle2 = container.GetWithArgs<IVehicle>(16);
+            IVehicle vehicle3 = container.GetWithArgs<IVehicle>(300);
 
             Assert.AreSame(vehicle2, vehicle1);
             Assert.AreSame(vehicle3, vehicle2);
@@ -202,6 +230,44 @@ namespace Zigject.Tests
             Assert.AreEqual<int>(2, vehicle1.Capacity);
             Assert.AreEqual<int>(2, vehicle2.Capacity);
             Assert.AreEqual<int>(2, vehicle3.Capacity);
+        }
+
+        [TestMethod]
+        public void OptionalsAndVarArgsTest()
+        {
+            IoC container = new IoC();
+
+            container.Register<IVehicle>(typeof(Shuttle));
+
+            IVehicle vehicle1 = container.GetWithArgs<IVehicle>(Type.Missing, "Bubbles", "Ricky", "Julian", "Bobandy");
+            Shuttle shuttle = vehicle1 as Shuttle;
+
+            Assert.IsNotNull(shuttle);
+            Assert.AreEqual<int>(56, shuttle.Capacity);
+            Assert.AreEqual<int>(4, shuttle.Passengers.Count);
+            Assert.AreEqual<string>("Bubbles", shuttle.Passengers[0]);
+            Assert.AreEqual<string>("Ricky", shuttle.Passengers[1]);
+            Assert.AreEqual<string>("Julian", shuttle.Passengers[2]);
+            Assert.AreEqual<string>("Bobandy", shuttle.Passengers[3]);
+        }
+
+        [TestMethod]
+        public void CreateOptionalsAndVarArgsTest()
+        {
+            IoC container = new IoC();
+
+            container.Register<IVehicle>(typeof(TukTuk), IoC.InjectionBehavior.CreateMethod);
+
+            IVehicle vehicle1 = container.GetWithArgs<IVehicle>(Type.Missing, "Bubbles", "Ricky", "Julian", "Bobandy");
+            TukTuk tuktuk = vehicle1 as TukTuk;
+
+            Assert.IsNotNull(tuktuk);
+            Assert.AreEqual<int>(3, tuktuk.Capacity);
+            Assert.AreEqual<int>(4, tuktuk.Passengers.Count);
+            Assert.AreEqual<string>("Bubbles", tuktuk.Passengers[0]);
+            Assert.AreEqual<string>("Ricky", tuktuk.Passengers[1]);
+            Assert.AreEqual<string>("Julian", tuktuk.Passengers[2]);
+            Assert.AreEqual<string>("Bobandy", tuktuk.Passengers[3]);
         }
     }
 }

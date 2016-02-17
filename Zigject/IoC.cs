@@ -33,6 +33,7 @@ namespace Zigject
     using System.Threading.Tasks;
     public class IoC
     {
+        #region Properties/Fields
         private static IoC _default;
 
         public static IoC Default
@@ -48,7 +49,9 @@ namespace Zigject
 
         private readonly Dictionary<Type, object> _map = new Dictionary<Type, object>();
         private readonly SemaphoreSlim _semLock = new SemaphoreSlim(1);
+        #endregion
 
+        #region Register/Clear
         public async Task ClearAsync()
         {
             await this._semLock.WaitAsync();
@@ -85,19 +88,36 @@ namespace Zigject
             }
         }
 
-        public async Task<T1> GetAsync<T1>(params object[] args)
+        public void Clear()
         {
-            return await GetOrDefaultAsync<T1>(null, null, args);
+            Task.Run(() => { return this.ClearAsync(); });
         }
 
-        public async Task<T1> GetAsync<T1>(Action<T1> initialize, params object[] args)
+        public void Register<T1>(object obj, InjectionBehavior behavior = InjectionBehavior.Standard)
+        {
+            Task.Run(() => { return this.RegisterAsync<T1>(obj, behavior); }).Wait();
+        }
+        #endregion
+
+        #region Get
+        public async Task<T1> GetWithInitializeAsync<T1>(Action<T1> initialize, params object[] args)
         {
             return await GetOrDefaultAsync(null, initialize, args);
         }
 
-        public async Task<T1> GetAsync<T1>(Func<T1> getDefault, params object[] args)
+        public async Task<T1> GetWithDefaultAsync<T1>(Func<T1> getDefault, params object[] args)
         {
             return await GetOrDefaultAsync(getDefault, null, args);
+        }
+
+        public async Task<T1> GetWithArgsAsync<T1>(params object[] args)
+        {
+            return await GetOrDefaultAsync<T1>(null, null, args);
+        }
+
+        public async Task<T1> GetAsync<T1>()
+        {
+            return await GetOrDefaultAsync<T1>(null, null);
         }
 
         public async Task<T1> GetOrDefaultAsync<T1>(Func<T1> getDefault = null, Action<T1> initialize = null, params object[] args)
@@ -148,35 +168,31 @@ namespace Zigject
             }
         }
 
-        public void Clear()
-        {
-            Task.Run(() => { return this.ClearAsync(); });
-        }
-
-        public void Register<T1>(object obj, InjectionBehavior behavior = InjectionBehavior.Standard)
-        {
-            Task.Run(() => { return this.RegisterAsync<T1>(obj, behavior); }).Wait();
-        }
-
-        public T1 Get<T1>(params object[] args)
-        {
-            return GetOrDefault<T1>(null, null, args);
-        }
-
-        public T1 Get<T1>(Action<T1> initialize, params object[] args)
+        public T1 GetWithInitialize<T1>(Action<T1> initialize, params object[] args)
         {
             return GetOrDefault(null, initialize, args);
         }
 
-        public T1 Get<T1>(Func<T1> getDefault, params object[] args)
+        public T1 GetWithDefault<T1>(Func<T1> getDefault, params object[] args)
         {
             return GetOrDefault(getDefault, null, args);
+        }
+
+        public T1 GetWithArgs<T1>(params object[] args)
+        {
+            return GetOrDefault<T1>(null, null, args);
+        }
+
+        public T1 Get<T1>()
+        {
+            return GetOrDefault<T1>(null, null);
         }
 
         public T1 GetOrDefault<T1>(Func<T1> getDefault = null, Action<T1> initialize = null, params object[] args)
         {
             return Task.Run(() => { return GetOrDefaultAsync(getDefault, initialize, args); }).Result;
         }
+        #endregion
 
         #region InjectionBehavior
         [Flags]
@@ -224,10 +240,12 @@ namespace Zigject
                 object result = type.InvokeMember("Create", BindingFlags.Public | BindingFlags.Static | BindingFlags.OptionalParamBinding | BindingFlags.InvokeMethod, null, null, args);
 
                 Task task = result as Task;
-                await task;
 
                 if (task != null)
+                {
+                    await task;
                     result = result.GetType().GetProperty("Result").GetValue(task);
+                }
 
                 return result;
             }
@@ -267,6 +285,38 @@ namespace Zigject
 
                 return (T1)result;
             }
+        }
+        #endregion
+
+        #region Obsolete
+        [Obsolete("This method is dangerously ambiguous.  Use GetWith instead.")]
+        public async Task<T1> GetAsync<T1>(params object[] args)
+        {
+            return await GetOrDefaultAsync<T1>(null, null, args);
+        }
+
+        [Obsolete("This method is dangerously ambiguous.  Use GetWith instead.")]
+        public async Task<T1> GetAsync<T1>(Action<T1> initialize, params object[] args)
+        {
+            return await GetOrDefaultAsync(null, initialize, args);
+        }
+
+        [Obsolete("This method is dangerously ambiguous.  Use GetWith instead.")]
+        public async Task<T1> GetAsync<T1>(Func<T1> getDefault, params object[] args)
+        {
+            return await GetOrDefaultAsync(getDefault, null, args);
+        }
+
+        [Obsolete("This method is dangerously ambiguous.  Use GetWith instead.")]
+        public T1 Get<T1>(Action<T1> initialize, params object[] args)
+        {
+            return GetOrDefault(null, initialize, args);
+        }
+
+        [Obsolete("This method is dangerously ambiguous.  Use GetWith instead.")]
+        public T1 Get<T1>(Func<T1> getDefault, params object[] args)
+        {
+            return GetOrDefault(getDefault, null, args);
         }
         #endregion
     }
