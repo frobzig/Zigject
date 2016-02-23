@@ -52,6 +52,25 @@ namespace Zigject
 
         private readonly ConcurrentDictionary<Type, object> _map = new ConcurrentDictionary<Type, object>();
         private readonly AsyncReaderWriterLock _arwLock = new AsyncReaderWriterLock();
+        private readonly AsyncLock _lock = new AsyncLock();
+        #endregion
+
+        #region Locking
+        public IDisposable Lock(CancellationToken? token = null)
+        {
+            if (token.HasValue)
+                return this._lock.Lock(token.Value);
+            else
+                return this._lock.Lock();
+        }
+
+        public AwaitableDisposable<IDisposable> LockAsync(CancellationToken? token = null)
+        {
+            if (token.HasValue)
+                return this._lock.LockAsync(token.Value);
+            else
+                return this._lock.LockAsync();
+        }
         #endregion
 
         #region Register/Clear

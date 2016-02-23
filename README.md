@@ -1,5 +1,6 @@
 # Zigject
-Super Simple IoC Container
+Increasingly complex IoC Container, which can still be used in a very simple form.
+
 ###### Below is a simple example.  There are a few more options for specifying default values and instantiation actions, but at this point it would be easier to refer to the extremely small source file.
 
 ## Example
