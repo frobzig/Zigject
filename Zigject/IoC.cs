@@ -117,16 +117,35 @@ namespace Zigject
             return await GetOrDefaultAsync(getDefault, null, args);
         }
 
+        /// <summary>
+        /// Gets an instance of type <typeparamref name="T1"/> from the IoC container, constructing it with the given <paramref name="args"/> if necessary.
+        /// </summary>
+        /// <typeparam name="T1">The type to retrieve from the IoC container.</typeparam>
+        /// <param name="args">Optional parameters used to construct the type, if necessary.  Use Type.Missing if you do not want to pass a value to an optional parameter.</param>
+        /// <returns>An instance of type <typeparamref name="T1"/>.</returns>
         public async Task<T1> GetWithArgsAsync<T1>(params object[] args)
         {
             return await GetOrDefaultAsync<T1>(null, null, args);
         }
 
+        /// <summary>
+        /// Gets an instance of type <typeparamref name="T1"/> from the IoC container, constructing it with no parameters if necessary.
+        /// </summary>
+        /// <typeparam name="T1">The type to retrieve from the IoC container.</typeparam>
+        /// <returns>An instance of type <typeparamref name="T1"/>.</returns>
         public async Task<T1> GetAsync<T1>()
         {
             return await GetOrDefaultAsync<T1>(null, null);
         }
 
+        /// <summary>
+        /// Gets an instance of type <typeparamref name="T1"/> from the IoC container, constructing it with the given <paramref name="args"/> if necessary.
+        /// </summary>
+        /// <typeparam name="T1">The type to retrieve from the IoC container.</typeparam>
+        /// <param name="getDefault">A function that returns the value to be returned if type <typeparamref name="T1"/> is not registered.</param>
+        /// <param name="initialize">An action that is run to initialize the instance returned if it is created by this call.</param>
+        /// <param name="args">Optional parameters used to construct the type, if necessary.  Use Type.Missing if you do not want to pass a value to an optional parameter.</param>
+        /// <returns>An instance of type <typeparamref name="T1"/>.</returns>
         public async Task<T1> GetOrDefaultAsync<T1>(Func<T1> getDefault = null, Action<T1> initialize = null, params object[] args)
         {
             T1 result;
@@ -161,26 +180,59 @@ namespace Zigject
             }
         }
 
+        /// <summary>
+        /// Gets an instance of type <typeparamref name="T1"/> from the IoC container, constructing it with the given <paramref name="args"/> if necessary.
+        /// </summary>
+        /// <typeparam name="T1">The type to retrieve from the IoC container.</typeparam>
+        /// <param name="initialize">An action that is run to initialize the instance returned if it is created by this call.</param>
+        /// <param name="args">Optional parameters used to construct the type, if necessary.  Use Type.Missing if you do not want to pass a value to an optional parameter.</param>
+        /// <returns>An instance of type <typeparamref name="T1"/>.</returns>
         public T1 GetWithInitialize<T1>(Action<T1> initialize, params object[] args)
         {
             return GetOrDefault(null, initialize, args);
         }
 
+        /// <summary>
+        /// Gets an instance of type <typeparamref name="T1"/> from the IoC container, constructing it with the given <paramref name="args"/> if necessary.
+        /// </summary>
+        /// <typeparam name="T1">The type to retrieve from the IoC container.</typeparam>
+        /// <param name="getDefault">A function that returns the value to be returned if type <typeparamref name="T1"/> is not registered.</param>
+        /// <param name="args">Optional parameters used to construct the type, if necessary.  Use Type.Missing if you do not want to pass a value to an optional parameter.</param>
+        /// <returns>An instance of type <typeparamref name="T1"/>.</returns>
         public T1 GetWithDefault<T1>(Func<T1> getDefault, params object[] args)
         {
             return GetOrDefault(getDefault, null, args);
         }
 
+        /// <summary>
+        /// Gets an instance of type <typeparamref name="T1"/> from the IoC container, constructing it with the given <paramref name="args"/> if necessary.
+        /// </summary>
+        /// <typeparam name="T1">The type to retrieve from the IoC container.</typeparam>
+        /// <param name="args">Optional parameters used to construct the type, if necessary.  Use Type.Missing if you do not want to pass a value to an optional parameter.</param>
+        /// <returns>An instance of type <typeparamref name="T1"/>.</returns>
         public T1 GetWithArgs<T1>(params object[] args)
         {
             return GetOrDefault<T1>(null, null, args);
         }
 
+        /// <summary>
+        /// Gets an instance of type <typeparamref name="T1"/> from the IoC container, constructing it with no parameters if necessary.
+        /// </summary>
+        /// <typeparam name="T1">The type to retrieve from the IoC container.</typeparam>
+        /// <returns>An instance of type <typeparamref name="T1"/>.</returns>
         public T1 Get<T1>()
         {
             return GetOrDefault<T1>(null, null);
         }
 
+        /// <summary>
+        /// Gets an instance of type <typeparamref name="T1"/> from the IoC container, constructing it with the given <paramref name="args"/> if necessary.
+        /// </summary>
+        /// <typeparam name="T1">The type to retrieve from the IoC container.</typeparam>
+        /// <param name="getDefault">A function that returns the value to be returned if type <typeparamref name="T1"/> is not registered.</param>
+        /// <param name="initialize">An action that is run to initialize the instance returned if it is created by this call.</param>
+        /// <param name="args">Optional parameters used to construct the type, if necessary.  Use Type.Missing if you do not want to pass a value to an optional parameter.</param>
+        /// <returns>An instance of type <typeparamref name="T1"/>.</returns>
         public T1 GetOrDefault<T1>(Func<T1> getDefault = null, Action<T1> initialize = null, params object[] args)
         {
             return Task.Run(() => { return GetOrDefaultAsync(getDefault, initialize, args); }).Result;

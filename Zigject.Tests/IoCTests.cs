@@ -33,7 +33,7 @@ namespace Zigject.Tests
         {
             public Car(int capacity = 5)
             {
-                this.Capacity = capacity; 
+                this.Capacity = capacity;
             }
         }
 
@@ -54,7 +54,7 @@ namespace Zigject.Tests
             }
         }
 
-        public class TukTuk :VehicleBase
+        public class TukTuk : VehicleBase
         {
             public static TukTuk Create(int capacity = 3, params string[] args)
             {
@@ -107,7 +107,7 @@ namespace Zigject.Tests
         public void SingletonTest()
         {
             IoC container = new IoC();
-            
+
             IVehicle circusCycle = new Unicycle() { Capacity = 4 };
             container.Register<IVehicle>(circusCycle);
 
@@ -277,6 +277,9 @@ namespace Zigject.Tests
             Assert.AreEqual<string>("Ricky", tuktuk.Passengers[1]);
             Assert.AreEqual<string>("Julian", tuktuk.Passengers[2]);
             Assert.AreEqual<string>("Bobandy", tuktuk.Passengers[3]);
+
+            IVehicle vehicle2 = container.GetWithArgs<IVehicle>(Type.Missing);
+            TukTuk moonbuggy = vehicle1 as TukTuk;
         }
 
         [TestMethod]
