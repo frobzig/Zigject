@@ -148,6 +148,9 @@ namespace Zigject
         /// <returns>An instance of type <typeparamref name="T1"/>.</returns>
         public async Task<T1> GetOrDefaultAsync<T1>(Func<T1> getDefault = null, Action<T1> initialize = null, params object[] args)
         {
+            if (args == null)
+                args = new object[] { null };
+
             T1 result;
 
             using (await this._arwLock.ReaderLockAsync())

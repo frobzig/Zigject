@@ -77,6 +77,16 @@ namespace Zigject.Tests
             }
         }
 
+        public class InnerTube : VehicleBase
+        {
+            public object[] Args { get; internal set; }
+
+            public static async Task<InnerTube> Create(params object[] args)
+            {
+                return await Task.FromResult(new InnerTube() { Args = args });
+            }
+        }
+
         [TestMethod]
         public void TypeActivatorTest()
         {
@@ -314,6 +324,20 @@ namespace Zigject.Tests
             Assert.IsNotNull(rikshaw);
             Assert.AreEqual<int>(3, rikshaw.Capacity);
             Assert.AreEqual<int>(0, rikshaw.Passengers.Count);
+        }
+
+        [TestMethod]
+        public void NullVarArgsTest()
+        {
+            IoC container = new IoC();
+            container.Register<IVehicle>(typeof(InnerTube), IoC.InjectionBehavior.CreateMethod);
+
+            InnerTube tube = container.GetWithArgs<IVehicle>(null) as InnerTube;
+
+            Assert.IsNotNull(tube);
+            Assert.IsNotNull(tube.Args);
+            Assert.AreEqual<int>(1, tube.Args.Length);
+            Assert.IsNull(tube.Args[0]);
         }
     }
 }
